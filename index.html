@@ -193,11 +193,11 @@
     </p>
   </header>
 
-  <div class="dropzone" id="dropzone">
-    <div class="big">ここに画像をドロップ / クリックして選択</div>
+  <label class="dropzone" id="dropzone" for="fileInput">
+    <div class="big">ここに画像をドロップ / タップして選択</div>
     <p>JPG・PNG対応 / 処理は端末の性能に依存します</p>
     <input type="file" id="fileInput" accept="image/*">
-  </div>
+  </label>
 
   <div class="status" id="status"></div>
   <div class="progress-track" id="progressTrack"><div class="progress-bar" id="progressBar"></div></div>
@@ -240,7 +240,6 @@
   const downloadBtn = document.getElementById("downloadBtn");
   const resetBtn = document.getElementById("resetBtn");
 
-  dropzone.addEventListener("click", () => fileInput.click());
   dropzone.addEventListener("dragover", (e) => { e.preventDefault(); dropzone.classList.add("drag"); });
   dropzone.addEventListener("dragleave", () => dropzone.classList.remove("drag"));
   dropzone.addEventListener("drop", (e) => {
