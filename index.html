@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>背景消しくん — ブラウザ内AI背景除去</title>
+<style>
+  :root {
+    --ink: #16140f;
+    --paper: #f3efe4;
+    --paper-dim: #e8e2d2;
+    --line: #cfc6ac;
+    --accent: #2f5d4f;
+    --accent-soft: #cfe3da;
+    --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--serif);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+  }
+  .wrap {
+    width: 100%;
+    max-width: 720px;
+    padding: 48px 24px 80px;
+  }
+  header {
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 16px;
+    margin-bottom: 32px;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  h1 {
+    font-size: 30px;
+    margin: 0 0 8px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .lead {
+    font-size: 14px;
+    color: #55503f;
+    line-height: 1.6;
+    margin: 0;
+  }
+  .lead b { color: var(--ink); }
+
+  .dropzone {
+    margin-top: 32px;
+    border: 2px dashed var(--line);
+    background: var(--paper-dim);
+    border-radius: 4px;
+    padding: 40px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .dropzone.drag {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+  .dropzone p {
+    margin: 0;
+    font-size: 14px;
+    color: #55503f;
+  }
+  .dropzone .big {
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    color: var(--ink);
+    margin-bottom: 6px;
+  }
+  input[type="file"] { display: none; }
+
+  .status {
+    margin-top: 20px;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--accent);
+    min-height: 18px;
+    letter-spacing: 0.02em;
+  }
+  .status.err { color: #a3402c; }
+
+  .progress-track {
+    margin-top: 8px;
+    height: 4px;
+    background: var(--line);
+    border-radius: 2px;
+    overflow: hidden;
+    display: none;
+  }
+  .progress-track.on { display: block; }
+  .progress-bar {
+    height: 100%;
+    width: 0%;
+    background: var(--accent);
+    transition: width 0.2s ease;
+  }
+
+  .stage {
+    margin-top: 32px;
+    display: none;
+  }
+  .stage.on { display: block; }
+  .compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  @media (max-width: 560px) {
+    .compare { grid-template-columns: 1fr; }
+  }
+  figure {
+    margin: 0;
+    border: 1px solid var(--line);
+    background:
+      linear-gradient(45deg, #ddd6bf 25%, transparent 25%),
+      linear-gradient(-45deg, #ddd6bf 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #ddd6bf 75%),
+      linear-gradient(-45deg, transparent 75%, #ddd6bf 75%);
+    background-size: 16px 16px;
+    background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+  }
+  figure img { display: block; width: 100%; height: auto; }
+  figcaption {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    background: var(--ink);
+    color: var(--paper);
+    padding: 5px 8px;
+  }
+
+  .actions {
+    margin-top: 20px;
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  button, .btn {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    letter-spacing: 0.04em;
+    padding: 11px 18px;
+    border-radius: 3px;
+    border: 1px solid var(--ink);
+    background: var(--ink);
+    color: var(--paper);
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+  }
+  button:disabled { opacity: 0.4; cursor: default; }
+  .btn.secondary {
+    background: transparent;
+    color: var(--ink);
+  }
+
+  footer {
+    margin-top: 48px;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+    font-family: var(--mono);
+    font-size: 11px;
+    color: #7a745e;
+    line-height: 1.7;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Client-side AI · No server, No upload</div>
+    <h1>背景消しくん</h1>
+    <p class="lead">
+      画像はどこにも送信されません。<b>ブラウザの中だけ</b>でAIモデルが動いて背景を透過します。
+      初回はモデル読み込み(数十MB)に少し時間がかかります。
+    </p>
+  </header>
+
+  <div class="dropzone" id="dropzone">
+    <div class="big">ここに画像をドロップ / クリックして選択</div>
+    <p>JPG・PNG対応 / 処理は端末の性能に依存します</p>
+    <input type="file" id="fileInput" accept="image/*">
+  </div>
+
+  <div class="status" id="status"></div>
+  <div class="progress-track" id="progressTrack"><div class="progress-bar" id="progressBar"></div></div>
+
+  <div class="stage" id="stage">
+    <div class="compare">
+      <figure>
+        <figcaption>Before</figcaption>
+        <img id="beforeImg" alt="元画像">
+      </figure>
+      <figure>
+        <figcaption>After</figcaption>
+        <img id="afterImg" alt="背景除去後">
+      </figure>
+    </div>
+    <div class="actions">
+      <a class="btn" id="downloadBtn" download="transparent.png">PNGをダウンロード</a>
+      <button class="secondary" id="resetBtn">別の画像を試す</button>
+    </div>
+  </div>
+
+  <footer>
+    使用モデル: imgly/background-removal (ONNX, ブラウザ内推論)<br>
+    仕組み: 画像 → ブラウザ内で人物/物体セグメンテーション → 背景アルファを0にしたPNGを生成<br>
+    このページ単体はGitHub Pagesのような静的ホスティングだけで動作します。
+  </footer>
+</div>
+
+<script type="module">
+  import { removeBackground } from "https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.5.5/dist/index.min.mjs";
+
+  const dropzone = document.getElementById("dropzone");
+  const fileInput = document.getElementById("fileInput");
+  const statusEl = document.getElementById("status");
+  const progressTrack = document.getElementById("progressTrack");
+  const progressBar = document.getElementById("progressBar");
+  const stage = document.getElementById("stage");
+  const beforeImg = document.getElementById("beforeImg");
+  const afterImg = document.getElementById("afterImg");
+  const downloadBtn = document.getElementById("downloadBtn");
+  const resetBtn = document.getElementById("resetBtn");
+
+  dropzone.addEventListener("click", () => fileInput.click());
+  dropzone.addEventListener("dragover", (e) => { e.preventDefault(); dropzone.classList.add("drag"); });
+  dropzone.addEventListener("dragleave", () => dropzone.classList.remove("drag"));
+  dropzone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    dropzone.classList.remove("drag");
+    if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+  });
+  fileInput.addEventListener("change", () => {
+    if (fileInput.files[0]) handleFile(fileInput.files[0]);
+  });
+  resetBtn.addEventListener("click", () => {
+    stage.classList.remove("on");
+    statusEl.textContent = "";
+    statusEl.classList.remove("err");
+    fileInput.value = "";
+  });
+
+  async function handleFile(file) {
+    if (!file.type.startsWith("image/")) {
+      statusEl.textContent = "画像ファイルを選んでください。";
+      statusEl.classList.add("err");
+      return;
+    }
+    statusEl.classList.remove("err");
+    stage.classList.remove("on");
+    beforeImg.src = URL.createObjectURL(file);
+
+    progressTrack.classList.add("on");
+    progressBar.style.width = "0%";
+    statusEl.textContent = "AIモデルを読み込み中…(初回のみ時間がかかります)";
+
+    try {
+      const resultBlob = await removeBackground(file, {
+        progress: (key, current, total) => {
+          const pct = total ? Math.round((current / total) * 100) : 0;
+          progressBar.style.width = pct + "%";
+          statusEl.textContent = `処理中: ${key} (${pct}%)`;
+        },
+      });
+
+      const url = URL.createObjectURL(resultBlob);
+      afterImg.src = url;
+      downloadBtn.href = url;
+      stage.classList.add("on");
+      statusEl.textContent = "完了しました。ダウンロードできます。";
+      progressBar.style.width = "100%";
+      setTimeout(() => progressTrack.classList.remove("on"), 600);
+    } catch (err) {
+      console.error(err);
+      statusEl.textContent = "エラーが発生しました: " + err.message;
+      statusEl.classList.add("err");
+      progressTrack.classList.remove("on");
+    }
+  }
+</script>
+</body>
+</html>
