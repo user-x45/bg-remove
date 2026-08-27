@@ -221,24 +221,13 @@
   </div>
 
   <footer>
-    使用モデル: imgly/background-removal (ONNX, ブラウザ内推論)<br>
-    仕組み: 画像 → ブラウザ内で人物/物体セグメンテーション → 背景アルファを0にしたPNGを生成<br>
+    使用モデル: Xenova/modnet via Transformers.js (ONNX, ブラウザ内推論)<br>
+    仕組み: 画像 → ブラウザ内で人物マット推定(ポートレート向け) → 背景アルファを0にしたPNGを生成<br>
     このページ単体はGitHub Pagesのような静的ホスティングだけで動作します。
   </footer>
 </div>
 
 <script type="module">
-  const statusElEarly = document.getElementById("status");
-  let removeBackground;
-  try {
-    ({ removeBackground } = await import("https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/dist/index.min.mjs"));
-    statusElEarly.textContent = "準備完了。画像を選んでください。";
-  } catch (e) {
-    console.error("ライブラリの読み込みに失敗:", e);
-    statusElEarly.textContent = "AIライブラリの読み込みに失敗しました。通信環境を確認して再読み込みしてください。";
-    statusElEarly.classList.add("err");
-  }
-
   const dropzone = document.getElementById("dropzone");
   const fileInput = document.getElementById("fileInput");
   const statusEl = document.getElementById("status");
@@ -249,6 +238,33 @@
   const afterImg = document.getElementById("afterImg");
   const downloadBtn = document.getElementById("downloadBtn");
   const resetBtn = document.getElementById("resetBtn");
+
+  let segmenter = null;
+
+  async function loadModel() {
+    try {
+      statusEl.textContent = "AIモデルを読み込み中…(初回のみ、数十MBの通信が発生します)";
+      const { pipeline, env } = await import("https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.5.1");
+      env.allowLocalModels = false;
+      segmenter = await pipeline("background-removal", "Xenova/modnet", {
+        progress_callback: (p) => {
+          if (p.status === "progress" && p.total) {
+            const pct = Math.round((p.loaded / p.total) * 100);
+            progressTrack.classList.add("on");
+            progressBar.style.width = pct + "%";
+            statusEl.textContent = `モデルを読み込み中… (${pct}%)`;
+          }
+        },
+      });
+      statusEl.textContent = "準備完了。画像を選んでください。";
+      progressTrack.classList.remove("on");
+    } catch (e) {
+      console.error("モデルの読み込みに失敗:", e);
+      statusEl.textContent = "AIモデルの読み込みに失敗しました。通信環境を確認して再読み込みしてください。";
+      statusEl.classList.add("err");
+    }
+  }
+  loadModel();
 
   dropzone.addEventListener("dragover", (e) => { e.preventDefault(); dropzone.classList.add("drag"); });
   dropzone.addEventListener("dragleave", () => dropzone.classList.remove("drag"));
@@ -262,14 +278,14 @@
   });
   resetBtn.addEventListener("click", () => {
     stage.classList.remove("on");
-    statusEl.textContent = "";
+    statusEl.textContent = segmenter ? "準備完了。画像を選んでください。" : "";
     statusEl.classList.remove("err");
     fileInput.value = "";
   });
 
   async function handleFile(file) {
-    if (!removeBackground) {
-      statusEl.textContent = "AIライブラリがまだ準備できていません。ページを再読み込みしてください。";
+    if (!segmenter) {
+      statusEl.textContent = "AIモデルがまだ準備できていません。少し待ってから再度お試しください。";
       statusEl.classList.add("err");
       return;
     }
@@ -283,17 +299,13 @@
     beforeImg.src = URL.createObjectURL(file);
 
     progressTrack.classList.add("on");
-    progressBar.style.width = "0%";
-    statusEl.textContent = "AIモデルを読み込み中…(初回のみ時間がかかります)";
+    progressBar.style.width = "50%";
+    statusEl.textContent = "背景を解析しています…";
 
     try {
-      const resultBlob = await removeBackground(file, {
-        progress: (key, current, total) => {
-          const pct = total ? Math.round((current / total) * 100) : 0;
-          progressBar.style.width = pct + "%";
-          statusEl.textContent = `処理中: ${key} (${pct}%)`;
-        },
-      });
+      const imageUrl = URL.createObjectURL(file);
+      const output = await segmenter(imageUrl);
+      const resultBlob = await output[0].toBlob();
 
       const url = URL.createObjectURL(resultBlob);
       afterImg.src = url;
