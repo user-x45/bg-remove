@@ -58,6 +58,7 @@
   .lead b { color: var(--ink); }
 
   .dropzone {
+    display: block;
     margin-top: 32px;
     border: 2px dashed var(--line);
     background: var(--paper-dim);
@@ -227,7 +228,16 @@
 </div>
 
 <script type="module">
-  import { removeBackground } from "https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.5.5/dist/index.min.mjs";
+  const statusElEarly = document.getElementById("status");
+  let removeBackground;
+  try {
+    ({ removeBackground } = await import("https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/dist/index.min.mjs"));
+    statusElEarly.textContent = "準備完了。画像を選んでください。";
+  } catch (e) {
+    console.error("ライブラリの読み込みに失敗:", e);
+    statusElEarly.textContent = "AIライブラリの読み込みに失敗しました。通信環境を確認して再読み込みしてください。";
+    statusElEarly.classList.add("err");
+  }
 
   const dropzone = document.getElementById("dropzone");
   const fileInput = document.getElementById("fileInput");
@@ -258,6 +268,11 @@
   });
 
   async function handleFile(file) {
+    if (!removeBackground) {
+      statusEl.textContent = "AIライブラリがまだ準備できていません。ページを再読み込みしてください。";
+      statusEl.classList.add("err");
+      return;
+    }
     if (!file.type.startsWith("image/")) {
       statusEl.textContent = "画像ファイルを選んでください。";
       statusEl.classList.add("err");
