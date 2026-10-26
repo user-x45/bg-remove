@@ -157,7 +157,21 @@ const GIFENC_URL = "https://cdn.jsdelivr.net/npm/gifenc@1.0.3/dist/gifenc.esm.js
 const MAX_SIDE = 1600;
 const MAX_SIDE_GIF = 480;
 const MAX_FRAMES = 150;
-const STAGES = { "compute:decode": [0, 8], "compute:inference": [8, 88], "compute:mask": [88, 96], "compute:encode": [96, 100] };
+const STAGE_START = [0, 8, 88, 92, 100];
+const WORKER_SRC = `
+import { removeBackground } from "${BG_URL}";
+self.onmessage = async e => {
+  try {
+    const out = await removeBackground(e.data, {
+      output: { format: "image/png" },
+      progress: (key, current, total) => self.postMessage({ type: "progress", key, current, total })
+    });
+    self.postMessage({ type: "done", blob: out });
+  } catch (err) {
+    self.postMessage({ type: "error", message: String((err && err.message) || err) });
+  }
+};
+`;
 
 const libs = {};
 
@@ -173,7 +187,6 @@ async function loadLib(key, url, names) {
   return libs[key];
 }
 
-const getRemover = async () => (await loadLib("bg", BG_URL, ["removeBackground"])).removeBackground;
 const getGifDecoder = () => loadLib("dec", GIFUCT_URL, ["parseGIF", "decompressFrames"]);
 const getGifEncoder = () => loadLib("enc", GIFENC_URL, ["GIFEncoder", "quantize", "applyPalette"]);
 
@@ -186,6 +199,9 @@ let busy = false;
 let fetches = {};
 let procPct = 0;
 let crawl = null;
+let modelReady = false;
+let lastFetchAt = 0;
+let cutStart = 0;
 let frameIdx = 0;
 let frameCount = 1;
 
@@ -265,9 +281,31 @@ function bump(p) {
   }
 }
 
+function fetchesDone() {
+  const list = Object.values(fetches);
+  return list.length > 0 && list.every(v => v.total && v.current >= v.total);
+}
+
 function startCrawl() {
   if (crawl) return;
-  crawl = setInterval(() => bump(procPct + (92 - procPct) * 0.035), 150);
+  crawl = setInterval(() => {
+    if (!modelReady) {
+      const hasFetch = Object.keys(fetches).length > 0;
+      const idle = Date.now() - lastFetchAt;
+      const elapsed = Date.now() - cutStart;
+      if ((hasFetch && fetchesDone() && idle > 800) || (!hasFetch && elapsed > 1500)) {
+        modelReady = true;
+        setModel(100, "");
+        setStep(2);
+        setStatus(frameCount > 1
+          ? "背景を除去しています… フレーム " + (frameIdx + 1) + " / " + frameCount
+          : "背景を除去しています…");
+      } else {
+        return;
+      }
+    }
+    bump(procPct + (92 - procPct) * 0.035);
+  }, 150);
 }
 
 function stopCrawl() {
@@ -278,16 +316,17 @@ function stopCrawl() {
 function onProgress(key, current, total) {
   if (key.startsWith("fetch")) {
     fetches[key] = { current, total };
+    lastFetchAt = Date.now();
     let c = 0, t = 0;
     Object.values(fetches).forEach(v => { c += v.current; t += v.total; });
     if (t) setModel(c / t * 100, fmtMB(c) + " / " + fmtMB(t));
     setStep(1);
     setStatus("モデルを読み込み中です（初回のみ時間がかかります）");
   } else if (key.startsWith("compute")) {
+    modelReady = true;
     setModel(100, "");
     setStep(2);
-    const range = STAGES[key];
-    if (range && total) bump(range[0] + (range[1] - range[0]) * Math.min(1, current / total));
+    if (total) bump(STAGE_START[Math.min(current, STAGE_START.length - 1)]);
     startCrawl();
     setStatus(frameCount > 1
       ? "背景を除去しています… フレーム " + (frameIdx + 1) + " / " + frameCount
@@ -295,14 +334,52 @@ function onProgress(key, current, total) {
   }
 }
 
+let worker = null;
+
+function getWorker() {
+  if (!worker) {
+    const url = URL.createObjectURL(new Blob([WORKER_SRC], { type: "text/javascript" }));
+    worker = new Worker(url, { type: "module" });
+  }
+  return worker;
+}
+
+function runInWorker(blob) {
+  return new Promise((resolve, reject) => {
+    const w = getWorker();
+    const cleanup = () => {
+      w.removeEventListener("message", onMsg);
+      w.removeEventListener("error", onErr);
+    };
+    const onMsg = e => {
+      const d = e.data;
+      if (d.type === "progress") {
+        onProgress(d.key, d.current, d.total);
+      } else if (d.type === "done") {
+        cleanup();
+        resolve(d.blob);
+      } else if (d.type === "error") {
+        cleanup();
+        reject(new Error(d.message));
+      }
+    };
+    const onErr = () => {
+      cleanup();
+      worker = null;
+      reject(new Error("背景除去の処理を開始できませんでした。ブラウザを更新して再度お試しください"));
+    };
+    w.addEventListener("message", onMsg);
+    w.addEventListener("error", onErr);
+    w.postMessage(blob);
+  });
+}
+
 async function cut(blob) {
   procPct = 0;
-  const removeBackground = await getRemover();
+  cutStart = Date.now();
+  startCrawl();
   try {
-    return await removeBackground(blob, {
-      output: { format: "image/png" },
-      progress: onProgress
-    });
+    return await runInWorker(blob);
   } finally {
     stopCrawl();
   }
