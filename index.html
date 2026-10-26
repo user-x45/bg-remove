@@ -104,8 +104,8 @@ button:focus-visible,a.btn:focus-visible{outline:3px solid var(--fg);outline-off
   <label id="drop" for="file">
     <i class="fa-solid fa-cloud-arrow-up" aria-hidden="true"></i>
     <strong>画像を選択またはドロップ</strong>
-    <span>JPG / PNG / WebP</span>
-    <input id="file" type="file" accept="image/jpeg,image/png,image/webp">
+    <span>JPG / PNG / WebP / GIF（アニメーション対応）</span>
+    <input id="file" type="file" accept="image/jpeg,image/png,image/webp,image/gif">
   </label>
   <section id="progress" class="panel" aria-label="処理の進捗">
     <ol class="steps" id="steps">
@@ -135,14 +135,18 @@ button:focus-visible,a.btn:focus-visible{outline:3px solid var(--fg);outline-off
     <button type="button" class="sub" data-bg="bgk" aria-pressed="false"><i class="fa-solid fa-square"></i>黒</button>
   </div>
   <div id="actions" class="actions">
-    <a id="dl" class="btn" download="transparent.png"><i class="fa-solid fa-download"></i>PNGを保存</a>
+    <a id="dl" class="btn" download="transparent.png"><i class="fa-solid fa-download"></i><span id="dlLabel">PNGを保存</span></a>
     <button id="reset" class="sub" type="button"><i class="fa-solid fa-rotate-left"></i>別の画像を選ぶ</button>
   </div>
 </main>
 <script type="module">
 import { removeBackground } from "https://esm.sh/@imgly/background-removal@1.5.5";
+import { parseGIF, decompressFrames } from "https://esm.sh/gifuct-js@2.1.2";
+import { GIFEncoder, quantize, applyPalette } from "https://esm.sh/gifenc@1.0.3";
 
 const MAX_SIDE = 1600;
+const MAX_SIDE_GIF = 480;
+const MAX_FRAMES = 150;
 const STAGES = { "compute:decode": [0, 8], "compute:inference": [8, 88], "compute:mask": [88, 96], "compute:encode": [96, 100] };
 
 const $ = id => document.getElementById(id);
@@ -154,6 +158,8 @@ let busy = false;
 let fetches = {};
 let procPct = 0;
 let crawl = null;
+let frameIdx = 0;
+let frameCount = 1;
 
 function setStatus(msg, err) {
   statusEl.textContent = msg;
@@ -211,7 +217,7 @@ function toBlob(canvas, type, q) {
 async function shrink(f) {
   const img = await loadImage(f);
   const scale = Math.min(1, MAX_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
-  if (scale === 1) return f;
+  if (scale === 1 && f.type !== "image/gif") return f;
   const w = Math.round(img.naturalWidth * scale);
   const h = Math.round(img.naturalHeight * scale);
   const c = document.createElement("canvas");
@@ -227,7 +233,7 @@ async function shrink(f) {
 function bump(p) {
   if (p > procPct) {
     procPct = p;
-    setProc(p);
+    setProc((frameIdx * 100 + procPct) / frameCount);
   }
 }
 
@@ -255,20 +261,117 @@ function onProgress(key, current, total) {
     const range = STAGES[key];
     if (range && total) bump(range[0] + (range[1] - range[0]) * Math.min(1, current / total));
     startCrawl();
-    setStatus("背景を除去しています…");
+    setStatus(frameCount > 1
+      ? "背景を除去しています… フレーム " + (frameIdx + 1) + " / " + frameCount
+      : "背景を除去しています…");
   }
+}
+
+async function cut(blob) {
+  procPct = 0;
+  try {
+    return await removeBackground(blob, {
+      output: { format: "image/png" },
+      progress: onProgress
+    });
+  } finally {
+    stopCrawl();
+  }
+}
+
+async function readGifFrames(f) {
+  const gif = parseGIF(await f.arrayBuffer());
+  const frames = decompressFrames(gif, true);
+  return { frames, W: gif.lsd.width, H: gif.lsd.height };
+}
+
+async function composeFrames(frames, W, H, w, h) {
+  const full = document.createElement("canvas");
+  full.width = W;
+  full.height = H;
+  const ctx = full.getContext("2d", { willReadFrequently: true });
+  const tmp = document.createElement("canvas");
+  const tctx = tmp.getContext("2d");
+  const snap = document.createElement("canvas");
+  snap.width = w;
+  snap.height = h;
+  const sctx = snap.getContext("2d");
+  const blobs = [];
+  const delays = [];
+  let prev = null;
+  let saved = null;
+  for (let i = 0; i < frames.length; i++) {
+    const fr = frames[i];
+    if (prev) {
+      if (prev.disposalType === 2) {
+        ctx.clearRect(prev.dims.left, prev.dims.top, prev.dims.width, prev.dims.height);
+      } else if (prev.disposalType === 3 && saved) {
+        ctx.putImageData(saved, 0, 0);
+      }
+    }
+    saved = fr.disposalType === 3 ? ctx.getImageData(0, 0, W, H) : null;
+    tmp.width = fr.dims.width;
+    tmp.height = fr.dims.height;
+    tctx.putImageData(new ImageData(fr.patch, fr.dims.width, fr.dims.height), 0, 0);
+    ctx.drawImage(tmp, fr.dims.left, fr.dims.top);
+    sctx.fillStyle = "#fff";
+    sctx.fillRect(0, 0, w, h);
+    sctx.drawImage(full, 0, 0, w, h);
+    blobs.push(await toBlob(snap, "image/png"));
+    delays.push(Math.max(20, fr.delay || 100));
+    prev = fr;
+    setStatus("フレームを展開しています… " + (i + 1) + " / " + frames.length);
+    await new Promise(r => setTimeout(r));
+  }
+  return { blobs, delays };
+}
+
+async function processGif(f, frames, W, H) {
+  const scale = Math.min(1, MAX_SIDE_GIF / Math.max(W, H));
+  const w = Math.max(1, Math.round(W * scale));
+  const h = Math.max(1, Math.round(H * scale));
+  const { blobs, delays } = await composeFrames(frames, W, H, w, h);
+  frameCount = blobs.length;
+  const enc = GIFEncoder();
+  const c = document.createElement("canvas");
+  c.width = w;
+  c.height = h;
+  const ctx = c.getContext("2d", { willReadFrequently: true });
+  for (let i = 0; i < blobs.length; i++) {
+    frameIdx = i;
+    const out = await cut(blobs[i]);
+    const img = await loadImage(out);
+    ctx.clearRect(0, 0, w, h);
+    ctx.drawImage(img, 0, 0, w, h);
+    const data = ctx.getImageData(0, 0, w, h).data;
+    const palette = quantize(data, 256, { format: "rgba4444", oneBitAlpha: true });
+    const index = applyPalette(data, palette, "rgba4444");
+    const ti = palette.findIndex(p => p[3] === 0);
+    enc.writeFrame(index, w, h, {
+      palette,
+      delay: delays[i],
+      transparent: ti >= 0,
+      transparentIndex: ti >= 0 ? ti : 0,
+      dispose: 2
+    });
+    bump(100);
+  }
+  enc.finish();
+  return new Blob([enc.bytesView()], { type: "image/gif" });
 }
 
 async function handle(f) {
   if (busy) return;
-  if (!f || !/^image\/(jpeg|png|webp)$/.test(f.type)) {
-    setStatus("JPG・PNG・WebPの画像を選んでください", true);
+  if (!f || !/^image\/(jpeg|png|webp|gif)$/.test(f.type)) {
+    setStatus("JPG・PNG・WebP・GIFの画像を選んでください", true);
     return;
   }
   busy = true;
   clearUrls();
   fetches = {};
   procPct = 0;
+  frameIdx = 0;
+  frameCount = 1;
   result.classList.remove("show");
   actions.classList.remove("show");
   tools.classList.remove("show");
@@ -277,27 +380,47 @@ async function handle(f) {
   setProc(0);
   setStep(0);
   try {
-    setStatus("画像を最適化しています…");
-    const small = await shrink(f);
-    const beforeUrl = URL.createObjectURL(small);
-    urls.push(beforeUrl);
-    $("before").src = beforeUrl;
+    let gifData = null;
+    if (f.type === "image/gif") {
+      setStatus("GIFを解析しています…");
+      const g = await readGifFrames(f);
+      if (g.frames.length > 1) {
+        if (g.frames.length > MAX_FRAMES) {
+          throw new Error("フレーム数が多すぎます（" + g.frames.length + "枚）。" + MAX_FRAMES + "枚以下のGIFを選んでください");
+        }
+        gifData = g;
+      }
+    }
 
-    setStep(1);
-    setStatus("モデルを準備しています…");
-    const out = await removeBackground(small, {
-      output: { format: "image/png" },
-      progress: onProgress
-    });
-    const afterUrl = URL.createObjectURL(out);
+    let outBlob;
+    let ext;
+    if (gifData) {
+      const beforeUrl = URL.createObjectURL(f);
+      urls.push(beforeUrl);
+      $("before").src = beforeUrl;
+      outBlob = await processGif(f, gifData.frames, gifData.W, gifData.H);
+      ext = "gif";
+    } else {
+      setStatus("画像を最適化しています…");
+      const small = await shrink(f);
+      const beforeUrl = URL.createObjectURL(small);
+      urls.push(beforeUrl);
+      $("before").src = beforeUrl;
+      setStep(1);
+      setStatus("モデルを準備しています…");
+      outBlob = await cut(small);
+      ext = "png";
+    }
+
+    const afterUrl = URL.createObjectURL(outBlob);
     urls.push(afterUrl);
     $("after").src = afterUrl;
     $("dl").href = afterUrl;
     const base = f.name.replace(/\.[^.]+$/, "") || "image";
-    $("dl").download = base + "-transparent.png";
+    $("dl").download = base + "-transparent." + ext;
+    $("dlLabel").textContent = ext.toUpperCase() + "を保存";
 
     stopCrawl();
-    procPct = 100;
     setModel(100, "");
     setProc(100);
     setStep(4);
