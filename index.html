@@ -140,14 +140,32 @@ button:focus-visible,a.btn:focus-visible{outline:3px solid var(--fg);outline-off
   </div>
 </main>
 <script type="module">
-import { removeBackground } from "https://esm.sh/@imgly/background-removal@1.5.5";
-import { parseGIF, decompressFrames } from "https://esm.sh/gifuct-js@2.1.2";
-import { GIFEncoder, quantize, applyPalette } from "https://esm.sh/gifenc@1.0.3";
+const BG_URL = "https://esm.sh/@imgly/background-removal@1.5.5";
+const GIFUCT_URL = "https://esm.sh/gifuct-js@2.1.2";
+const GIFENC_URL = "https://cdn.jsdelivr.net/npm/gifenc@1.0.3/dist/gifenc.esm.js";
 
 const MAX_SIDE = 1600;
 const MAX_SIDE_GIF = 480;
 const MAX_FRAMES = 150;
 const STAGES = { "compute:decode": [0, 8], "compute:inference": [8, 88], "compute:mask": [88, 96], "compute:encode": [96, 100] };
+
+const libs = {};
+
+async function loadLib(key, url, names) {
+  if (!libs[key]) {
+    try {
+      const m = await import(url);
+      libs[key] = names.every(n => m[n]) ? m : (m.default || m);
+    } catch (e) {
+      throw new Error("ライブラリを読み込めませんでした。ネットワーク接続を確認してください");
+    }
+  }
+  return libs[key];
+}
+
+const getRemover = async () => (await loadLib("bg", BG_URL, ["removeBackground"])).removeBackground;
+const getGifDecoder = () => loadLib("dec", GIFUCT_URL, ["parseGIF", "decompressFrames"]);
+const getGifEncoder = () => loadLib("enc", GIFENC_URL, ["GIFEncoder", "quantize", "applyPalette"]);
 
 const $ = id => document.getElementById(id);
 const drop = $("drop"), file = $("file"), statusEl = $("status");
@@ -269,6 +287,7 @@ function onProgress(key, current, total) {
 
 async function cut(blob) {
   procPct = 0;
+  const removeBackground = await getRemover();
   try {
     return await removeBackground(blob, {
       output: { format: "image/png" },
@@ -280,6 +299,7 @@ async function cut(blob) {
 }
 
 async function readGifFrames(f) {
+  const { parseGIF, decompressFrames } = await getGifDecoder();
   const gif = parseGIF(await f.arrayBuffer());
   const frames = decompressFrames(gif, true);
   return { frames, W: gif.lsd.width, H: gif.lsd.height };
@@ -327,6 +347,7 @@ async function composeFrames(frames, W, H, w, h) {
 }
 
 async function processGif(f, frames, W, H) {
+  const { GIFEncoder, quantize, applyPalette } = await getGifEncoder();
   const scale = Math.min(1, MAX_SIDE_GIF / Math.max(W, H));
   const w = Math.max(1, Math.round(W * scale));
   const h = Math.max(1, Math.round(H * scale));
