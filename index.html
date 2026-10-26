@@ -152,7 +152,8 @@ const stepItems = [...$("steps").children];
 let urls = [];
 let busy = false;
 let fetches = {};
-let computes = {};
+let procPct = 0;
+let crawl = null;
 
 function setStatus(msg, err) {
   statusEl.textContent = msg;
@@ -223,6 +224,23 @@ async function shrink(f) {
   return await toBlob(c, "image/jpeg", 0.92);
 }
 
+function bump(p) {
+  if (p > procPct) {
+    procPct = p;
+    setProc(p);
+  }
+}
+
+function startCrawl() {
+  if (crawl) return;
+  crawl = setInterval(() => bump(procPct + (92 - procPct) * 0.035), 150);
+}
+
+function stopCrawl() {
+  clearInterval(crawl);
+  crawl = null;
+}
+
 function onProgress(key, current, total) {
   if (key.startsWith("fetch")) {
     fetches[key] = { current, total };
@@ -235,14 +253,8 @@ function onProgress(key, current, total) {
     setModel(100, "");
     setStep(2);
     const range = STAGES[key];
-    if (range && total) {
-      computes[key] = current / total;
-      let pct = 0;
-      Object.entries(STAGES).forEach(([k, [a, b]]) => {
-        pct += (b - a) * Math.min(1, computes[k] || 0);
-      });
-      setProc(pct);
-    }
+    if (range && total) bump(range[0] + (range[1] - range[0]) * Math.min(1, current / total));
+    startCrawl();
     setStatus("背景を除去しています…");
   }
 }
@@ -256,7 +268,7 @@ async function handle(f) {
   busy = true;
   clearUrls();
   fetches = {};
-  computes = {};
+  procPct = 0;
   result.classList.remove("show");
   actions.classList.remove("show");
   tools.classList.remove("show");
@@ -284,6 +296,8 @@ async function handle(f) {
     const base = f.name.replace(/\.[^.]+$/, "") || "image";
     $("dl").download = base + "-transparent.png";
 
+    stopCrawl();
+    procPct = 100;
     setModel(100, "");
     setProc(100);
     setStep(4);
@@ -295,6 +309,7 @@ async function handle(f) {
     setStatus(e.message || "エラーが発生しました", true);
     panel.classList.remove("show");
   } finally {
+    stopCrawl();
     busy = false;
   }
 }
