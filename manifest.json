@@ -1,0 +1,25 @@
+{
+  "name": "背景透過",
+  "short_name": "背景透過",
+  "description": "画像の背景をブラウザ内で自動的に切り抜く無料ツール。JPG・PNG・WebP・アニメーションGIFに対応。",
+  "lang": "ja",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#eef1ef",
+  "theme_color": "#0f7a5c",
+  "icons": [
+    {
+      "src": "favicon/192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "favicon/512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
