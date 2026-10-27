@@ -4,119 +4,257 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>モデル比較</title>
+<meta name="description" content="画像の背景をブラウザ内で自動的に切り抜く無料ツール。JPG・PNG・WebP・アニメーションGIFに対応し、画像は端末の外へ送信されません。">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon/32.png">
+<link rel="icon" type="image/png" sizes="96x96" href="favicon/96.png">
+<link rel="icon" type="image/png" sizes="144x144" href="favicon/144.png">
+<link rel="apple-touch-icon" sizes="152x152" href="favicon/152.png">
+<link rel="apple-touch-icon" sizes="180x180" href="favicon/180.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0f7a5c" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d1311" media="(prefers-color-scheme: dark)">
+<title>背景透過</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
 <style>
 :root{
-  --bg:#eef1ef;--fg:#14201b;--sub:#58675f;--line:#c9d3ce;--accent:#0f7a5c;--accent2:#14a37a;--accent-fg:#fff;
-  --card:rgba(255,255,255,.8);--track:#dde4e0;--c1:#e4e8e6;--c2:#fff;--shadow:0 1px 2px rgba(20,32,27,.06),0 12px 32px -12px rgba(20,32,27,.18);--err:#b83a2c;--warn:#8a5a00;
+  --bg:#eef1ef;--bg2:#e3e9e6;--fg:#14201b;--sub:#58675f;--line:#c9d3ce;--accent:#0f7a5c;--accent2:#14a37a;--accent-fg:#fff;
+  --card:rgba(255,255,255,.78);--card-solid:#fff;--track:#dde4e0;--c1:#e4e8e6;--c2:#fff;--shadow:0 1px 2px rgba(20,32,27,.06),0 12px 32px -12px rgba(20,32,27,.18);--err:#b83a2c;
 }
 @media (prefers-color-scheme:dark){
-  :root{--bg:#0d1311;--fg:#e8efec;--sub:#8d9c96;--line:#27342f;--accent:#3ecf9f;--accent2:#7be3c0;--accent-fg:#05211a;
-  --card:rgba(23,31,28,.85);--track:#25302c;--c1:#1f2926;--c2:#2a3632;--shadow:0 1px 2px rgba(0,0,0,.4),0 16px 36px -14px rgba(0,0,0,.6);--err:#ff7b6b;--warn:#e8b64a}
+  :root{--bg:#0d1311;--bg2:#121a17;--fg:#e8efec;--sub:#8d9c96;--line:#27342f;--accent:#3ecf9f;--accent2:#7be3c0;--accent-fg:#05211a;
+  --card:rgba(23,31,28,.82);--card-solid:#171f1c;--track:#25302c;--c1:#1f2926;--c2:#2a3632;--shadow:0 1px 2px rgba(0,0,0,.4),0 16px 36px -14px rgba(0,0,0,.6);--err:#ff7b6b}
 }
 *{box-sizing:border-box}
 html,body{margin:0}
 body{
   min-height:100vh;color:var(--fg);
-  background:radial-gradient(900px 480px at 85% -10%,color-mix(in srgb,var(--accent) 14%,transparent),transparent 70%),linear-gradient(180deg,var(--bg),var(--track));
+  background:
+    radial-gradient(900px 480px at 85% -10%,color-mix(in srgb,var(--accent) 14%,transparent),transparent 70%),
+    radial-gradient(700px 420px at -10% 10%,color-mix(in srgb,var(--accent2) 10%,transparent),transparent 70%),
+    linear-gradient(180deg,var(--bg),var(--bg2));
   background-attachment:fixed;
   font-family:"Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
   line-height:1.7;padding:max(28px,env(safe-area-inset-top)) 20px max(40px,env(safe-area-inset-bottom));
 }
-main{max-width:960px;margin:0 auto}
-h1{font-size:clamp(26px,5.5vw,38px);margin:20px 0 6px;letter-spacing:.04em;line-height:1.25}
-p.lead{margin:0 0 24px;color:var(--sub);max-width:64ch}
+main{max-width:920px;margin:0 auto}
+header{display:flex;align-items:center;gap:14px;margin:20px 0 6px}
+.mark{width:46px;height:46px;border-radius:13px;flex:none;display:grid;place-items:center;font-size:20px;color:var(--accent-fg);background:linear-gradient(135deg,var(--accent2),var(--accent));box-shadow:0 6px 16px -6px color-mix(in srgb,var(--accent) 70%,transparent)}
+h1{font-size:clamp(28px,6vw,42px);margin:0;letter-spacing:.04em;font-weight:700;line-height:1.2}
+p.lead{margin:6px 0 28px;color:var(--sub);max-width:60ch}
 .panel{background:var(--card);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow)}
-#drop{display:block;border:1.5px dashed var(--line);border-radius:18px;background:var(--card);box-shadow:var(--shadow);padding:44px 20px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s}
-#drop:hover,#drop.over,#drop:focus-within{border-color:var(--accent)}
-#drop strong{display:block;font-size:18px}
+#drop{
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  border:1.5px dashed var(--line);border-radius:18px;background:var(--card);box-shadow:var(--shadow);
+  padding:52px 20px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s,transform .2s;
+}
+#drop:hover{border-color:var(--accent)}
+#drop.over,#drop:focus-within{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 7%,var(--card-solid));transform:translateY(-2px)}
+#drop i{font-size:40px;color:var(--accent);margin-bottom:8px}
+#drop strong{font-size:18px}
 #drop span{color:var(--sub);font-size:14px}
 #file{position:absolute;opacity:0;width:1px;height:1px}
+#progress{display:none;margin-top:18px;padding:20px 22px}
+#progress.show{display:block}
+.steps{display:flex;gap:6px;margin:0 0 18px;padding:0;list-style:none;font-size:13px;color:var(--sub)}
+.steps li{flex:1;padding-top:10px;border-top:3px solid var(--track);transition:border-color .3s,color .3s}
+.steps li i{margin-right:6px;font-size:12px}
+.steps li.on{border-color:var(--accent);color:var(--fg);font-weight:700}
+.steps li.done{border-color:var(--accent);color:var(--accent)}
+.meter{margin:14px 0 0}
+.meter-head{display:flex;justify-content:space-between;align-items:baseline;font-size:14px;margin-bottom:6px}
+.meter-head b{font-variant-numeric:tabular-nums;font-size:18px;font-weight:700}
+.meter-head small{color:var(--sub);font-size:12px;margin-left:8px;font-variant-numeric:tabular-nums}
+.bar{height:10px;border-radius:99px;background:var(--track);overflow:hidden}
+.bar i{display:block;height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .25s ease}
+.bar.run i{background-size:200% 100%;background-image:linear-gradient(90deg,var(--accent),var(--accent2),var(--accent));animation:flow 1.6s linear infinite}
+@keyframes flow{to{background-position:-200% 0}}
 #status{min-height:24px;margin:16px 2px 0;color:var(--sub);font-size:14px}
 #status.err{color:var(--err);font-weight:700}
-.bar{display:none;height:8px;border-radius:99px;background:var(--track);overflow:hidden;margin-top:10px}
-.bar.show{display:block}
-.bar i{display:block;height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .3s ease}
-#results{display:none;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px}
-#results.show{display:grid}
-.card{padding:14px}
-.card h2{font-size:17px;margin:0 0 2px}
-.card h2 small{color:var(--sub);font-weight:400;font-size:13px;margin-left:6px}
-.box{margin:10px 0 12px;border-radius:10px;overflow:hidden;line-height:0;border:1px solid var(--line);
+#result{display:none;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px}
+#result.show{display:grid;animation:rise .5s ease both}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+figure{margin:0;padding:12px}
+figcaption{font-size:13px;color:var(--sub);margin-bottom:8px}
+.box{
+  border-radius:10px;overflow:hidden;line-height:0;border:1px solid var(--line);
   background-color:var(--c1);
   background-image:linear-gradient(45deg,var(--c2) 25%,transparent 25%,transparent 75%,var(--c2) 75%),linear-gradient(45deg,var(--c2) 25%,transparent 25%,transparent 75%,var(--c2) 75%);
-  background-size:20px 20px;background-position:0 0,10px 10px}
+  background-size:20px 20px;background-position:0 0,10px 10px;
+}
+.box.bgw{background:#fff}
+.box.bgk{background:#111}
 .box img{width:100%;height:auto;display:block}
-dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:14px}
-dt{color:var(--sub)}
-dd{margin:0;text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
-dd.best{color:var(--accent)}
-dd.best::after{content:" ◎";font-weight:400}
-.note{margin:18px 2px 0;color:var(--sub);font-size:13px}
-button{font:inherit;font-weight:700;border:1px solid var(--line);border-radius:12px;padding:10px 20px;cursor:pointer;background:transparent;color:var(--fg);margin-top:18px;display:none}
-button.show{display:inline-block}
-button:hover{border-color:var(--accent)}
-button:focus-visible{outline:3px solid var(--fg);outline-offset:2px}
-@media (max-width:600px){#results{grid-template-columns:1fr}}
+.tools{display:none;align-items:center;gap:8px;margin-top:14px;font-size:13px;color:var(--sub);flex-wrap:wrap}
+.tools.show{display:flex}
+.tools button{padding:6px 14px;font-size:13px;font-weight:500;border-radius:99px}
+.tools button[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.actions{display:none;margin-top:20px;gap:12px;flex-wrap:wrap}
+.actions.show{display:flex}
+button,a.btn{
+  font:inherit;font-weight:700;border:0;border-radius:12px;padding:12px 24px;cursor:pointer;
+  background:linear-gradient(135deg,var(--accent2),var(--accent));color:var(--accent-fg);text-decoration:none;display:inline-block;
+  box-shadow:0 6px 16px -8px color-mix(in srgb,var(--accent) 70%,transparent);transition:transform .15s,box-shadow .15s;
+}
+a.btn:hover{transform:translateY(-1px)}
+button.sub{background:transparent;color:var(--fg);border:1px solid var(--line);box-shadow:none}
+button.sub:hover{border-color:var(--accent)}
+button i,a.btn i{margin-right:.5em}
+button:focus-visible,a.btn:focus-visible{outline:3px solid var(--fg);outline-offset:2px}
+@media (max-width:600px){#result{grid-template-columns:1fr}.steps{font-size:12px}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
 <main>
-  <h1>モデル比較</h1>
-  <p class="lead">同じ画像を medium（従来）と small（現在）で処理し、ダウンロード量・読み込み時間・処理時間・見た目を並べて比べます。処理はすべて端末内で行われます。</p>
+  <header>
+    <div class="mark" aria-hidden="true"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+    <h1>背景透過</h1>
+  </header>
+  <p class="lead">画像を選ぶと、背景を切り抜いた透過PNGを作ります。処理はお使いの端末内で行われ、画像は送信されません。</p>
   <label id="drop" for="file">
+    <i class="fa-solid fa-cloud-arrow-up" aria-hidden="true"></i>
     <strong>画像を選択またはドロップ</strong>
-    <span>JPG / PNG / WebP</span>
-    <input id="file" type="file" accept="image/jpeg,image/png,image/webp">
+    <span>JPG / PNG / WebP / GIF（アニメーション対応）</span>
+    <input id="file" type="file" accept="image/jpeg,image/png,image/webp,image/gif">
   </label>
-  <div class="bar" id="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></div>
+  <section id="progress" class="panel" aria-label="処理の進捗">
+    <ol class="steps" id="steps">
+      <li><i class="fa-solid fa-image"></i>画像の最適化</li>
+      <li><i class="fa-solid fa-cube"></i>モデルの読み込み</li>
+      <li><i class="fa-solid fa-wand-magic-sparkles"></i>背景の除去</li>
+      <li><i class="fa-solid fa-circle-check"></i>完了</li>
+    </ol>
+    <div class="meter">
+      <div class="meter-head"><span>モデルの読み込み<small id="modelNote"></small></span><b id="modelPct">0%</b></div>
+      <div class="bar" id="modelBar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></div>
+    </div>
+    <div class="meter">
+      <div class="meter-head"><span>背景の除去</span><b id="procPct">0%</b></div>
+      <div class="bar" id="procBar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></div>
+    </div>
+  </section>
   <div id="status" role="status" aria-live="polite"></div>
-  <div id="results">
-    <section class="card panel" id="card-medium"></section>
-    <section class="card panel" id="card-small"></section>
+  <div id="result">
+    <figure class="panel"><figcaption>元画像</figcaption><div class="box"><img id="before" alt="元画像"></div></figure>
+    <figure class="panel"><figcaption>透過結果</figcaption><div class="box" id="afterBox"><img id="after" alt="透過結果"></div></figure>
   </div>
-  <p class="note" id="note" hidden>◎ は良い方の値です。先に計測したモデルは、実行環境（WASM）の取得時間が読み込み時間に含まれるため、読み込み時間は不利になります。処理時間は「2回目」の値が、読み込みを除いた実力に近くなります。</p>
-  <button id="again" type="button">別の画像で試す</button>
+  <div class="tools" id="tools">
+    <span>プレビュー背景</span>
+    <button type="button" class="sub" data-bg="" aria-pressed="true"><i class="fa-solid fa-chess-board"></i>市松</button>
+    <button type="button" class="sub" data-bg="bgw" aria-pressed="false"><i class="fa-regular fa-square"></i>白</button>
+    <button type="button" class="sub" data-bg="bgk" aria-pressed="false"><i class="fa-solid fa-square"></i>黒</button>
+  </div>
+  <div id="actions" class="actions">
+    <a id="dl" class="btn" download="transparent.png"><i class="fa-solid fa-download"></i><span id="dlLabel">PNGを保存</span></a>
+    <button id="reset" class="sub" type="button"><i class="fa-solid fa-rotate-left"></i>別の画像を選ぶ</button>
+  </div>
 </main>
 <script type="module">
 const BG_URL = "https://esm.sh/@imgly/background-removal@1.7.0";
+const GIFUCT_URL = "https://esm.sh/gifuct-js@2.1.2";
+const GIFENC_URL = "https://cdn.jsdelivr.net/npm/gifenc@1.0.3/dist/gifenc.esm.js";
+
 const MAX_SIDE = 1600;
-const MODELS = [
-  { id: "medium", label: "medium", sub: "従来" },
-  { id: "small", label: "small", sub: "現在" }
-];
+const MAX_SIDE_GIF = 480;
+const MAX_FRAMES = 150;
+const STAGE_START = [0, 8, 88, 92, 100];
 const WORKER_SRC = `
 import { removeBackground } from "${BG_URL}";
+function attempt(blob, device) {
+  return removeBackground(blob, {
+    model: "medium",
+    device,
+    output: { format: "image/png" },
+    progress: (key, current, total) => self.postMessage({ type: "progress", key, current, total })
+  });
+}
 self.onmessage = async e => {
+  const { blob } = e.data;
+  let device = e.data.device;
   try {
-    const out = await removeBackground(e.data.blob, {
-      model: e.data.model,
-      output: { format: "image/png" },
-      progress: (key, current, total) => self.postMessage({ type: "progress", key, current, total })
-    });
-    self.postMessage({ type: "done", blob: out });
+    let out;
+    try {
+      out = await attempt(blob, device);
+    } catch (err) {
+      if (device !== "gpu") throw err;
+      device = "cpu";
+      self.postMessage({ type: "fallback" });
+      out = await attempt(blob, device);
+    }
+    self.postMessage({ type: "done", blob: out, device });
   } catch (err) {
     self.postMessage({ type: "error", message: String((err && err.message) || err) });
   }
 };
 `;
 
+const libs = {};
+
+async function loadLib(key, url, names) {
+  if (!libs[key]) {
+    try {
+      const m = await import(url);
+      libs[key] = names.every(n => m[n]) ? m : (m.default || m);
+    } catch (e) {
+      throw new Error("ライブラリを読み込めませんでした。ネットワーク接続を確認してください");
+    }
+  }
+  return libs[key];
+}
+
+const getGifDecoder = () => loadLib("dec", GIFUCT_URL, ["parseGIF", "decompressFrames"]);
+const getGifEncoder = () => loadLib("enc", GIFENC_URL, ["GIFEncoder", "quantize", "applyPalette"]);
+
 const $ = id => document.getElementById(id);
-const drop = $("drop"), file = $("file"), statusEl = $("status"), bar = $("bar");
-const results = $("results"), again = $("again"), note = $("note");
+const drop = $("drop"), file = $("file"), statusEl = $("status");
+const result = $("result"), actions = $("actions"), tools = $("tools"), panel = $("progress");
+const stepItems = [...$("steps").children];
 let urls = [];
 let busy = false;
+let fetches = {};
+let procPct = 0;
+let crawl = null;
+let modelReady = false;
+let lastFetchAt = 0;
+let cutStart = 0;
+let frameIdx = 0;
+let frameCount = 1;
 let worker = null;
+let device = null;
+let usedDevice = "cpu";
 
 function setStatus(msg, err) {
   statusEl.textContent = msg;
   statusEl.className = err ? "err" : "";
 }
 
-function setBar(p) {
-  bar.classList.add("show");
+function setStep(n) {
+  stepItems.forEach((li, i) => {
+    li.className = i < n ? "done" : i === n ? "on" : "";
+  });
+}
+
+function setMeter(bar, pct, running) {
+  const p = Math.max(0, Math.min(100, Math.round(pct)));
   bar.firstElementChild.style.width = p + "%";
-  bar.setAttribute("aria-valuenow", Math.round(p));
+  bar.setAttribute("aria-valuenow", p);
+  bar.classList.toggle("run", !!running && p < 100);
+  return p;
+}
+
+function setModel(pct, note) {
+  const p = setMeter($("modelBar"), pct, true);
+  $("modelPct").textContent = p + "%";
+  $("modelNote").textContent = note || "";
+}
+
+function setProc(pct) {
+  const p = setMeter($("procBar"), pct, true);
+  $("procPct").textContent = p + "%";
+}
+
+function fmtMB(n) {
+  return (n / 1048576).toFixed(1) + "MB";
 }
 
 function clearUrls() {
@@ -141,7 +279,7 @@ function toBlob(canvas, type, q) {
 async function shrink(f) {
   const img = await loadImage(f);
   const scale = Math.min(1, MAX_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
-  if (scale === 1) return f;
+  if (scale === 1 && f.type !== "image/gif") return f;
   const w = Math.round(img.naturalWidth * scale);
   const h = Math.round(img.naturalHeight * scale);
   const c = document.createElement("canvas");
@@ -154,6 +292,77 @@ async function shrink(f) {
   return await toBlob(c, "image/jpeg", 0.92);
 }
 
+function bump(p) {
+  if (p > procPct) {
+    procPct = p;
+    setProc((frameIdx * 100 + procPct) / frameCount);
+  }
+}
+
+function fetchesDone() {
+  const list = Object.values(fetches);
+  return list.length > 0 && list.every(v => v.total && v.current >= v.total);
+}
+
+function startCrawl() {
+  if (crawl) return;
+  crawl = setInterval(() => {
+    if (!modelReady) {
+      const hasFetch = Object.keys(fetches).length > 0;
+      const idle = Date.now() - lastFetchAt;
+      const elapsed = Date.now() - cutStart;
+      if ((hasFetch && fetchesDone() && idle > 800) || (!hasFetch && elapsed > 1500)) {
+        modelReady = true;
+        setModel(100, "");
+        setStep(2);
+        setStatus(frameCount > 1
+          ? "背景を除去しています… フレーム " + (frameIdx + 1) + " / " + frameCount
+          : "背景を除去しています…");
+      } else {
+        return;
+      }
+    }
+    bump(procPct + (92 - procPct) * 0.035);
+  }, 150);
+}
+
+function stopCrawl() {
+  clearInterval(crawl);
+  crawl = null;
+}
+
+function onProgress(key, current, total) {
+  if (key.startsWith("fetch")) {
+    fetches[key] = { current, total };
+    lastFetchAt = Date.now();
+    let c = 0, t = 0;
+    Object.values(fetches).forEach(v => { c += v.current; t += v.total; });
+    if (t) setModel(c / t * 100, fmtMB(c) + " / " + fmtMB(t));
+    setStep(1);
+    setStatus("モデルを読み込み中です（初回のみ時間がかかります）");
+  } else if (key.startsWith("compute")) {
+    modelReady = true;
+    setModel(100, "");
+    setStep(2);
+    if (total) bump(STAGE_START[Math.min(current, STAGE_START.length - 1)]);
+    startCrawl();
+    setStatus(frameCount > 1
+      ? "背景を除去しています… フレーム " + (frameIdx + 1) + " / " + frameCount
+      : "背景を除去しています…");
+  }
+}
+
+async function detectDevice() {
+  if (device) return device;
+  device = "cpu";
+  try {
+    if (navigator.gpu && await navigator.gpu.requestAdapter()) device = "gpu";
+  } catch (e) {
+    device = "cpu";
+  }
+  return device;
+}
+
 function getWorker() {
   if (!worker) {
     const url = URL.createObjectURL(new Blob([WORKER_SRC], { type: "text/javascript" }));
@@ -162,12 +371,9 @@ function getWorker() {
   return worker;
 }
 
-function run(model, blob) {
+function runInWorker(blob, dev) {
   return new Promise((resolve, reject) => {
     const w = getWorker();
-    const t0 = performance.now();
-    let tDecode = null;
-    const totals = {};
     const cleanup = () => {
       w.removeEventListener("message", onMsg);
       w.removeEventListener("error", onErr);
@@ -175,18 +381,14 @@ function run(model, blob) {
     const onMsg = e => {
       const d = e.data;
       if (d.type === "progress") {
-        if (d.key.startsWith("fetch")) totals[d.key] = d.total;
-        if (d.key === "compute:decode" && tDecode === null) tDecode = performance.now();
+        onProgress(d.key, d.current, d.total);
+      } else if (d.type === "fallback") {
+        device = "cpu";
+        setStatus("WebGPUで処理できなかったため、CPUで処理します…");
       } else if (d.type === "done") {
-        const tEnd = performance.now();
         cleanup();
-        const start = tDecode === null ? t0 : tDecode;
-        resolve({
-          out: d.blob,
-          load: start - t0,
-          proc: tEnd - start,
-          bytes: Object.values(totals).reduce((a, b) => a + b, 0)
-        });
+        usedDevice = d.device;
+        resolve(d.blob);
       } else if (d.type === "error") {
         cleanup();
         reject(new Error(d.message));
@@ -195,90 +397,182 @@ function run(model, blob) {
     const onErr = () => {
       cleanup();
       worker = null;
-      reject(new Error("処理を開始できませんでした。ブラウザを更新して再度お試しください"));
+      reject(new Error("背景除去の処理を開始できませんでした。ブラウザを更新して再度お試しください"));
     };
     w.addEventListener("message", onMsg);
     w.addEventListener("error", onErr);
-    w.postMessage({ blob, model });
+    w.postMessage({ blob, device: dev });
   });
 }
 
-function fmtSec(ms) {
-  return (ms / 1000).toFixed(2) + " 秒";
+async function cut(blob) {
+  procPct = 0;
+  cutStart = Date.now();
+  startCrawl();
+  try {
+    return await runInWorker(blob, await detectDevice());
+  } finally {
+    stopCrawl();
+  }
 }
 
-function fmtMB(n) {
-  return n ? (n / 1048576).toFixed(1) + " MB" : "キャッシュ済み";
+async function readGifFrames(f) {
+  const { parseGIF, decompressFrames } = await getGifDecoder();
+  const gif = parseGIF(await f.arrayBuffer());
+  const frames = decompressFrames(gif, true);
+  return { frames, W: gif.lsd.width, H: gif.lsd.height };
 }
 
-function fmtKB(n) {
-  return n >= 1048576 ? (n / 1048576).toFixed(2) + " MB" : Math.round(n / 1024) + " KB";
+async function composeFrames(frames, W, H, w, h) {
+  const full = document.createElement("canvas");
+  full.width = W;
+  full.height = H;
+  const ctx = full.getContext("2d", { willReadFrequently: true });
+  const tmp = document.createElement("canvas");
+  const tctx = tmp.getContext("2d");
+  const snap = document.createElement("canvas");
+  snap.width = w;
+  snap.height = h;
+  const sctx = snap.getContext("2d");
+  const blobs = [];
+  const delays = [];
+  let prev = null;
+  let saved = null;
+  for (let i = 0; i < frames.length; i++) {
+    const fr = frames[i];
+    if (prev) {
+      if (prev.disposalType === 2) {
+        ctx.clearRect(prev.dims.left, prev.dims.top, prev.dims.width, prev.dims.height);
+      } else if (prev.disposalType === 3 && saved) {
+        ctx.putImageData(saved, 0, 0);
+      }
+    }
+    saved = fr.disposalType === 3 ? ctx.getImageData(0, 0, W, H) : null;
+    tmp.width = fr.dims.width;
+    tmp.height = fr.dims.height;
+    tctx.putImageData(new ImageData(fr.patch, fr.dims.width, fr.dims.height), 0, 0);
+    ctx.drawImage(tmp, fr.dims.left, fr.dims.top);
+    sctx.fillStyle = "#fff";
+    sctx.fillRect(0, 0, w, h);
+    sctx.drawImage(full, 0, 0, w, h);
+    blobs.push(await toBlob(snap, "image/png"));
+    delays.push(Math.max(20, fr.delay || 100));
+    prev = fr;
+    setStatus("フレームを展開しています… " + (i + 1) + " / " + frames.length);
+    await new Promise(r => setTimeout(r));
+  }
+  return { blobs, delays };
 }
 
-function render(stats) {
-  const keys = ["bytes", "load", "proc1", "proc2", "size"];
-  const best = {};
-  keys.forEach(k => {
-    const vals = MODELS.map(m => stats[m.id][k]);
-    if (k === "bytes" && vals.some(v => !v)) return;
-    const min = Math.min(...vals);
-    const max = Math.max(...vals);
-    if (min !== max) best[k] = MODELS[vals.indexOf(min)].id;
-  });
-  MODELS.forEach(m => {
-    const s = stats[m.id];
-    const cls = k => (best[k] === m.id ? "best" : "");
-    const url = URL.createObjectURL(s.out);
-    urls.push(url);
-    $("card-" + m.id).innerHTML =
-      "<h2>" + m.label + "<small>" + m.sub + "</small></h2>" +
-      '<div class="box"><img alt="' + m.label + 'の結果" src="' + url + '"></div>' +
-      "<dl>" +
-      "<dt>ダウンロード量</dt><dd class=\"" + cls("bytes") + "\">" + fmtMB(s.bytes) + "</dd>" +
-      "<dt>読み込み時間</dt><dd class=\"" + cls("load") + "\">" + fmtSec(s.load) + "</dd>" +
-      "<dt>処理時間（初回）</dt><dd class=\"" + cls("proc1") + "\">" + fmtSec(s.proc1) + "</dd>" +
-      "<dt>処理時間（2回目）</dt><dd class=\"" + cls("proc2") + "\">" + fmtSec(s.proc2) + "</dd>" +
-      "<dt>出力ファイル</dt><dd class=\"" + cls("size") + "\">" + fmtKB(s.out.size) + "</dd>" +
-      "</dl>";
-  });
+async function processGif(frames, W, H) {
+  const { GIFEncoder, quantize, applyPalette } = await getGifEncoder();
+  const scale = Math.min(1, MAX_SIDE_GIF / Math.max(W, H));
+  const w = Math.max(1, Math.round(W * scale));
+  const h = Math.max(1, Math.round(H * scale));
+  const { blobs, delays } = await composeFrames(frames, W, H, w, h);
+  frameCount = blobs.length;
+  const enc = GIFEncoder();
+  const c = document.createElement("canvas");
+  c.width = w;
+  c.height = h;
+  const ctx = c.getContext("2d", { willReadFrequently: true });
+  for (let i = 0; i < blobs.length; i++) {
+    frameIdx = i;
+    const out = await cut(blobs[i]);
+    const img = await loadImage(out);
+    ctx.clearRect(0, 0, w, h);
+    ctx.drawImage(img, 0, 0, w, h);
+    const data = ctx.getImageData(0, 0, w, h).data;
+    const palette = quantize(data, 256, { format: "rgba4444", oneBitAlpha: true });
+    const index = applyPalette(data, palette, "rgba4444");
+    const ti = palette.findIndex(p => p[3] === 0);
+    enc.writeFrame(index, w, h, {
+      palette,
+      delay: delays[i],
+      transparent: ti >= 0,
+      transparentIndex: ti >= 0 ? ti : 0,
+      dispose: 2
+    });
+    bump(100);
+  }
+  enc.finish();
+  return new Blob([enc.bytesView()], { type: "image/gif" });
 }
 
 async function handle(f) {
   if (busy) return;
-  if (!f || !/^image\/(jpeg|png|webp)$/.test(f.type)) {
-    setStatus("JPG・PNG・WebPの画像を選んでください", true);
+  if (!f || !/^image\/(jpeg|png|webp|gif)$/.test(f.type)) {
+    setStatus("JPG・PNG・WebP・GIFの画像を選んでください", true);
     return;
   }
   busy = true;
   clearUrls();
-  results.classList.remove("show");
-  note.hidden = true;
-  again.classList.remove("show");
-  setBar(0);
+  fetches = {};
+  procPct = 0;
+  frameIdx = 0;
+  frameCount = 1;
+  result.classList.remove("show");
+  actions.classList.remove("show");
+  tools.classList.remove("show");
+  panel.classList.add("show");
+  setModel(0, "");
+  setProc(0);
+  setStep(0);
   try {
-    setStatus("画像を最適化しています…");
-    const small = await shrink(f);
-    const stats = {};
-    const steps = MODELS.length * 2;
-    let n = 0;
-    for (const m of MODELS) {
-      setStatus(m.label + " を計測しています（1回目）… 初回はモデルをダウンロードします");
-      const r1 = await run(m.id, small);
-      setBar(++n / steps * 100);
-      setStatus(m.label + " を計測しています（2回目）…");
-      const r2 = await run(m.id, small);
-      setBar(++n / steps * 100);
-      stats[m.id] = { out: r2.out, bytes: r1.bytes, load: r1.load, proc1: r1.proc, proc2: r2.proc, size: r2.out.size };
+    let gifData = null;
+    if (f.type === "image/gif") {
+      setStatus("GIFを解析しています…");
+      const g = await readGifFrames(f);
+      if (g.frames.length > 1) {
+        if (g.frames.length > MAX_FRAMES) {
+          throw new Error("フレーム数が多すぎます（" + g.frames.length + "枚）。" + MAX_FRAMES + "枚以下のGIFを選んでください");
+        }
+        gifData = g;
+      }
     }
-    render(stats);
-    results.classList.add("show");
-    note.hidden = false;
-    again.classList.add("show");
-    setStatus("計測が完了しました（画像サイズ " + (f.size / 1024).toFixed(0) + " KB）");
+
+    let outBlob;
+    let ext;
+    if (gifData) {
+      const beforeUrl = URL.createObjectURL(f);
+      urls.push(beforeUrl);
+      $("before").src = beforeUrl;
+      outBlob = await processGif(gifData.frames, gifData.W, gifData.H);
+      ext = "gif";
+    } else {
+      setStatus("画像を最適化しています…");
+      const small = await shrink(f);
+      const beforeUrl = URL.createObjectURL(small);
+      urls.push(beforeUrl);
+      $("before").src = beforeUrl;
+      setStep(1);
+      setStatus("モデルを準備しています…");
+      outBlob = await cut(small);
+      ext = "png";
+    }
+
+    const afterUrl = URL.createObjectURL(outBlob);
+    urls.push(afterUrl);
+    $("after").src = afterUrl;
+    $("dl").href = afterUrl;
+    const base = f.name.replace(/\.[^.]+$/, "") || "image";
+    $("dl").download = base + "-transparent." + ext;
+    $("dlLabel").textContent = ext.toUpperCase() + "を保存";
+
+    stopCrawl();
+    procPct = 100;
+    setModel(100, "");
+    setProc(100);
+    setStep(4);
+    result.classList.add("show");
+    actions.classList.add("show");
+    tools.classList.add("show");
+    setStatus("完了しました（" + (usedDevice === "gpu" ? "WebGPU" : "CPU") + "で処理）");
   } catch (e) {
     setStatus(e.message || "エラーが発生しました", true);
-    bar.classList.remove("show");
+    panel.classList.remove("show");
   } finally {
+    stopCrawl();
     busy = false;
   }
 }
@@ -287,13 +581,19 @@ file.addEventListener("change", () => handle(file.files[0]));
 ["dragenter", "dragover"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("over"); }));
 ["dragleave", "drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("over"); }));
 drop.addEventListener("drop", e => handle(e.dataTransfer.files[0]));
-again.addEventListener("click", () => {
+tools.addEventListener("click", e => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  tools.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b ? "true" : "false"));
+  $("afterBox").className = "box" + (b.dataset.bg ? " " + b.dataset.bg : "");
+});
+$("reset").addEventListener("click", () => {
   clearUrls();
   file.value = "";
-  results.classList.remove("show");
-  note.hidden = true;
-  again.classList.remove("show");
-  bar.classList.remove("show");
+  result.classList.remove("show");
+  actions.classList.remove("show");
+  tools.classList.remove("show");
+  panel.classList.remove("show");
   setStatus("");
 });
 </script>
