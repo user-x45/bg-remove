@@ -163,6 +163,7 @@ import { removeBackground } from "${BG_URL}";
 self.onmessage = async e => {
   try {
     const out = await removeBackground(e.data, {
+      model: "small",
       output: { format: "image/png" },
       progress: (key, current, total) => self.postMessage({ type: "progress", key, current, total })
     });
@@ -204,6 +205,7 @@ let lastFetchAt = 0;
 let cutStart = 0;
 let frameIdx = 0;
 let frameCount = 1;
+let worker = null;
 
 function setStatus(msg, err) {
   statusEl.textContent = msg;
@@ -334,8 +336,6 @@ function onProgress(key, current, total) {
   }
 }
 
-let worker = null;
-
 function getWorker() {
   if (!worker) {
     const url = URL.createObjectURL(new Blob([WORKER_SRC], { type: "text/javascript" }));
@@ -433,7 +433,7 @@ async function composeFrames(frames, W, H, w, h) {
   return { blobs, delays };
 }
 
-async function processGif(f, frames, W, H) {
+async function processGif(frames, W, H) {
   const { GIFEncoder, quantize, applyPalette } = await getGifEncoder();
   const scale = Math.min(1, MAX_SIDE_GIF / Math.max(W, H));
   const w = Math.max(1, Math.round(W * scale));
@@ -506,7 +506,7 @@ async function handle(f) {
       const beforeUrl = URL.createObjectURL(f);
       urls.push(beforeUrl);
       $("before").src = beforeUrl;
-      outBlob = await processGif(f, gifData.frames, gifData.W, gifData.H);
+      outBlob = await processGif(gifData.frames, gifData.W, gifData.H);
       ext = "gif";
     } else {
       setStatus("画像を最適化しています…");
@@ -529,6 +529,7 @@ async function handle(f) {
     $("dlLabel").textContent = ext.toUpperCase() + "を保存";
 
     stopCrawl();
+    procPct = 100;
     setModel(100, "");
     setProc(100);
     setStep(4);
