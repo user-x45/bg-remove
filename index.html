@@ -352,11 +352,25 @@ function onProgress(key, current, total) {
   }
 }
 
+const GPU_VENDORS = ["nvidia", "amd", "apple", "intel"];
+
 async function detectDevice() {
   if (device) return device;
   device = "cpu";
   try {
-    if (navigator.gpu && await navigator.gpu.requestAdapter()) device = "gpu";
+    if (!navigator.gpu) return device;
+    const adapter = await navigator.gpu.requestAdapter();
+    if (!adapter) return device;
+    let info = adapter.info;
+    if (!info && typeof adapter.requestAdapterInfo === "function") info = await adapter.requestAdapterInfo();
+    if (!info) return device;
+    const vendor = String(info.vendor || "").toLowerCase();
+    const fallback = adapter.isFallbackAdapter === true || info.isFallbackAdapter === true;
+    const cores = navigator.hardwareConcurrency || 0;
+    const memory = navigator.deviceMemory;
+    const enoughMemory = memory === undefined || memory >= 8;
+    const knownVendor = GPU_VENDORS.some(v => vendor.includes(v));
+    if (knownVendor && !fallback && cores >= 8 && enoughMemory) device = "gpu";
   } catch (e) {
     device = "cpu";
   }
